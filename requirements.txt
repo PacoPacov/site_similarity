@@ -1,0 +1,15 @@
+beautifulsoup4==4.9.1
+brotlipy==0.7.0
+certifi==2020.6.20
+cffi==1.14.0
+chardet==3.0.4
+cryptography==2.9.2
+idna==2.9
+lxml==4.5.1
+pycparser==2.20
+pyOpenSSL==19.1.0
+PySocks==1.7.1
+requests @ file:///tmp/build/80754af9/requests_1592841827918/work
+six==1.15.0
+soupsieve==2.0.1
+urllib3==1.25.9
