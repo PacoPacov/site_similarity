@@ -19,4 +19,4 @@ We use the scrapped data from this [repo](https://github.com/ramybaly/News-Media
     * corpus.csv
     * splits.json
     * stats.txt
-    * Note that the scripts were ran on the data from (24 August 2018)
+    * Note that used the data from (24 August 2018)
