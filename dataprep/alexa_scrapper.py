@@ -1,14 +1,22 @@
 import argparse
 import json
 import os
+import logging
 
 import requests
 from bs4 import BeautifulSoup
 
 _DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+_LOGGER = logging.getLogger('dataprep.alexa_scrapper')
 
 
-class ScrapeAlexa():
+class ScrapeAlexa:
+    def __init__(self, target_site):
+        self.target_site = target_site
+
+    def _is_site_already_checked(self):
+        return f'{self.target_site}.json' in os.listdir(_DATA_PATH)
+
     @staticmethod
     def _get_alexa_audience_metrics(element):
         """ Returns data about audience overlap like:
@@ -31,9 +39,13 @@ class ScrapeAlexa():
 
         return result
 
-    def scrape_alexa_site_info(self, target_site):
-        response = requests.get(f"https://www.alexa.com/siteinfo/{target_site}")
-        with open(os.path.join(_DATA_PATH, f'{target_site}.html'), 'w') as f:
+    def scrape_alexa_site_info(self):
+        if self._is_site_already_checked():
+            _LOGGER.info(f"This site '{self.target_site}' has already being processed")
+            return
+
+        response = requests.get(f"https://www.alexa.com/siteinfo/{self.target_site}")
+        with open(os.path.join(_DATA_PATH, f'{self.target_site}.html'), 'w') as f:
             f.write(response.text)
         element = BeautifulSoup(response.text, 'lxml')
 
@@ -42,7 +54,7 @@ class ScrapeAlexa():
 
         res = {}
 
-        res['site'] = target_site
+        res['site'] = self.target_site
         res['score'] = ScrapeAlexa._get_alexa_audience_metrics(element)
         res['audience_geography'] = [{'country': country.text.split("\xa0")[-1], 'percent': float(percent.text[:-1])}
                                       for country, percent in zip(countries, percentages)]
@@ -56,7 +68,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    result = ScrapeAlexa().scrape_alexa_site_info(args.target_site)
+    result = ScrapeAlexa(args.target_site).scrape_alexa_site_info()
 
     with open(os.path.join(_DATA_PATH, f'{args.target_site}.json'), 'w') as f:
         json.dump(result, f, indent=4)
