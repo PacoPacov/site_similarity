@@ -15,7 +15,7 @@ class ScrapeAlexa:
         self.target_site = target_site
 
     def _is_site_already_checked(self):
-        return f'{self.target_site}.json' in os.listdir(_DATA_PATH)
+        return f'{self.target_site}.html' in os.listdir(_DATA_PATH)
 
     @staticmethod
     def _get_alexa_audience_metrics(element):
@@ -23,18 +23,24 @@ class ScrapeAlexa:
         similar sites, overlap score, alexa rank
         :param element: BeautifulSoup object
         """
-        referral_sites = element.select("#card_mini_audience")[0]
+
+        similar_sites_by_audience_overlap = element.select("#card_mini_audience")
+        if not similar_sites_by_audience_overlap:
+            return []
+
+        referral_sites = similar_sites_by_audience_overlap[0]
 
         score = [score.text for score in referral_sites.find_all('span', {'class', 'truncation'})]
         urls = referral_sites.find_all('div', {'class': 'site'})[1:]
 
         alexa_ranks = [el.span.text for el in element.find_all('div', {'class': 'metric_two'})[1:6]]
 
+        # TODO Add implementation on how to handle when where isn't 'referral_sites'
         result = []
         for url, score, alexa_rank in zip(urls, score, alexa_ranks):
             url = url.text.strip('\n').strip('\t').strip(' ').strip('\t').strip('\n').strip(' ').strip('\t').strip('\n')
-            score = float(score.replace(',', ''))
-            alexa_rank = float(alexa_rank[:-2].replace(',', ''))
+            score = float(score.replace(',', '')) if score.strip() != '-' else None
+            alexa_rank = float(alexa_rank[:-2].replace(',', '')) if alexa_rank.strip() != '-' else None
             result.append({'url': url, 'score': score, 'alexa_rank': alexa_rank})
 
         return result
@@ -67,6 +73,8 @@ if __name__ == '__main__':
     parser.add_argument('--target_site', default='bradva.bg')
 
     args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
 
     result = ScrapeAlexa(args.target_site).scrape_alexa_site_info()
 
