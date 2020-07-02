@@ -5,9 +5,9 @@ import json
 _ANNOTATED_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'annotated_data')
 
 
-def load_corpus():
+def load_corpus(corpus_file):
     corpus = []
-    with open(os.path.join(_ANNOTATED_DATA_PATH, 'corpus.csv')) as f:
+    with open(os.path.join(_ANNOTATED_DATA_PATH, corpus_file)) as f:
         csv_reader = csv.DictReader(f)
 
         for row in csv_reader:
