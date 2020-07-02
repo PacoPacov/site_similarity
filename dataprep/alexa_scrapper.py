@@ -1,10 +1,13 @@
 import argparse
+import copy
 import json
 import os
 import logging
+import time
 
 import requests
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 
 _DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 _LOGGER = logging.getLogger('dataprep.alexa_scrapper')
@@ -85,6 +88,18 @@ class ScrapeAlexa:
             res['audience_geography'] = []
 
         return res
+
+
+def level_one_scrapping(data, target_dir=None):
+    level_one_result = copy.deepcopy(data)
+    for site in tqdm(data):
+        level_one_res = []
+        for overlap_site in data[site]['score']:
+            level_one_res.append(ScrapeAlexa(overlap_site['url'], target_dir).scrape_alexa_site_info())
+
+        level_one_result[site]['level_one_res'] = level_one_res
+
+    return level_one_result
 
 
 if __name__ == '__main__':
