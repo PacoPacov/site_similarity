@@ -42,7 +42,7 @@ def baseline_one(data):
     most_frequent_bias = list(Counter([_['fact'] for _ in data]).keys())[0]
 
     result = {}
-    for row in tqdm(data[100:300]):
+    for row in tqdm(data):
         try:
             alexa_results = ScrapeAlexa(row['source_url_processed']).scrape_alexa_site_info()
         except BaseException as e:
