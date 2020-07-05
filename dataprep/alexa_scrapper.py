@@ -102,6 +102,24 @@ def level_one_scrapping(data, target_dir=None):
     return level_one_result
 
 
+def level_two_scrapping(data, target_dir=None, output_file=None):
+    level_two_result = copy.deepcopy(data)
+    for index, site in tqdm(enumerate(level_two_result)):
+        if index % 10 == 0:
+            print(f"Save data at index {index} ...")
+            with open(output_file, 'w') as f:
+                json.dump(level_two_result, f, indent=4)
+        for level_one_res in level_two_result[site]['level_one_res']:
+            if level_one_res['score']:
+                level_two_local_res = []
+                for target_site in level_one_res['score']:
+                    level_two_local_res.append(ScrapeAlexa(target_site['url'], target_dir).scrape_alexa_site_info())
+
+                level_one_res['level_two_res'] = level_two_local_res
+
+    return level_two_result
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--target_site', default='bradva.bg')
