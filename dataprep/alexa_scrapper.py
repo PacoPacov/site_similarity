@@ -1,21 +1,20 @@
 import argparse
-import copy
 import json
 import os
 import logging
 import time
 
+import redis
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'all_data')
 _LOGGER = logging.getLogger('dataprep.alexa_scrapper')
 
 
 class ScrapeAlexa:
-    def __init__(self, target_site, target_dir=None):
-        self.target_site = target_site
+    def __init__(self, target_dir=None):
         self.target_dir = target_dir if target_dir else _DATA_PATH
         os.makedirs(self.target_dir, exist_ok=True)
 
@@ -52,7 +51,9 @@ class ScrapeAlexa:
                  'alexa_rank': float(al_score.replace(',', '')) if al_score.strip() != '-' else None}
                 for site, ov_score, al_score in zip(similar_sites, sites_overlap_score, alexa_score)]
 
-    def scrape_alexa_site_info(self):
+    def scrape_alexa_site_info(self, target_site):
+        self.target_site = target_site
+
         if self._is_site_already_checked():
             _LOGGER.info(f"This site '{self.target_site}' has already being processed")
             with open(f"{self.target_dir}/{self.target_site}.html") as f:
@@ -63,6 +64,10 @@ class ScrapeAlexa:
         else:
             time.sleep(10)
             response = requests.get(f"https://www.alexa.com/siteinfo/{self.target_site}")
+
+            if "Our apologies!" in response.text:
+                time.sleep(20)
+                response = requests.get(f"https://www.alexa.com/siteinfo/{self.target_site}")
 
             if 'Forbidden' in response.text:
                 raise ValueError("You've exceeded the request limit for the day!")
@@ -90,43 +95,37 @@ class ScrapeAlexa:
         return res
 
 
-def level_one_scrapping(data, target_dir=None):
-    level_one_result = copy.deepcopy(data)
-    for site in tqdm(data):
-        level_one_res = []
-        for overlap_site in data[site]['score']:
-            level_one_res.append(ScrapeAlexa(overlap_site['url'], target_dir).scrape_alexa_site_info())
+def scrapping(data, target_dir=None, output_file=None):
+    result = {}
+    alexa_scrapper = ScrapeAlexa(target_dir)
+    r = redis.Redis(host='localhost', port=6379, db=0)
 
-        level_one_result[site]['level_one_res'] = level_one_res
-
-    return level_one_result
-
-
-def level_two_scrapping(data, target_dir=None, output_file=None):
-    level_two_result = copy.deepcopy(data)
-    for index, site in tqdm(enumerate(level_two_result)):
-        if index % 10 == 0:
+    for index, child_sites in enumerate(tqdm(data.values())):
+        if index % 100 == 0 and output_file:
             print(f"Save data at index {index} ...")
             with open(output_file, 'w') as f:
-                json.dump(level_two_result, f, indent=4)
-        for level_one_res in level_two_result[site]['level_one_res']:
-            if level_one_res['score']:
-                level_two_local_res = []
-                for target_site in level_one_res['score']:
-                    level_two_local_res.append(ScrapeAlexa(target_site['url'], target_dir).scrape_alexa_site_info())
-
-                level_one_res['level_two_res'] = level_two_local_res
-
-    return level_two_result
+                json.dump(result, f, indent=4)
+        for child_site in child_sites.values():
+            result[child_site['site']] = {}
+            for overlap_site in child_site.get('score', []):
+                if r.exists(overlap_site['url']):
+                    # load from redis
+                    result[child_site['site']][overlap_site['url']] = json.loads(r.get(overlap_site['url']))
+                else:
+                    alexa_result = alexa_scrapper.scrape_alexa_site_info(overlap_site['url'])
+                    # save in redis
+                    r.set(overlap_site['url'], json.dumps(alexa_result))
+                    result[child_site['site']][overlap_site['url']] = alexa_result
+    return result
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--target_site', default='bradva.bg')
 
     args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO)
 
     result = ScrapeAlexa(args.target_site).scrape_alexa_site_info()
 
