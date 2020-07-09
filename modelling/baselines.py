@@ -3,7 +3,6 @@ from collections import Counter, defaultdict
 
 from tqdm import tqdm
 from dataprep.alexa_scrapper import ScrapeAlexa
-from dataprep.load_annotated_data import apply_splits, load_corpus
 
 _LOGGER = logging.getLogger('modelling.baselines')
 
@@ -33,39 +32,94 @@ def _process_related_sites(alexa_results, annotated_data):
     return annotations
 
 
-def baseline_one(data):
-    """
-    When we have equal or no information about relative sites: We take the most frequent one from the data
-    :param data:
-    :return:
-    """
-    most_frequent_bias = list(Counter([_['fact'] for _ in data]).keys())[0]
+class MostFrequentClassifier:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
 
-    result = {}
-    for row in tqdm(data):
-        try:
-            alexa_results = ScrapeAlexa(row['source_url_processed']).scrape_alexa_site_info()
-        except BaseException as e:
-            _LOGGER.error(f"alexa_rank fails on site: {row['source_url_processed']} with error {repr(e)}")
+    def fit(self, data):
+        self.most_frequent_classes_ = list(Counter([_['fact'] for _ in data]).keys())
 
-        if not alexa_results['score']:
-            _LOGGER.info(f"Could not find results for: {row['source_url_processed']}")
-            result[row['source_url_processed']] = most_frequent_bias
-            continue
+    def predict(self, data):
+        result = {}
+        for row in tqdm(data):
+            try:
+                alexa_results = ScrapeAlexa(row['source_url_processed']).scrape_alexa_site_info()
+            except BaseException as e:
+                _LOGGER.error(f"alexa_rank fails on site: {row['source_url_processed']} with error {repr(e)}")
 
-        annotations = _process_related_sites(alexa_results, data)
-        # _LOGGER.info(f"Results for {row['source_url_processed']} {annotations}")
+            if not alexa_results['score']:
+                _LOGGER.info(f"Could not find results for: {row['source_url_processed']}")
+                result[row['source_url_processed']] = self.most_frequent_classes_[0]
+                continue
 
-        annotations_counter = Counter([value for value in annotations.values() if value])
+            annotations = _process_related_sites(alexa_results, data)
 
-        if len(annotations_counter) == 1:
-            result[row['source_url_processed']] = list(annotations_counter.keys())[0]
-        elif annotations_counter and list(annotations_counter.values())[0] > list(annotations_counter.values())[1]:
-            result[row['source_url_processed']] = list(annotations_counter.keys())[0]
-        else:
-            result[row['source_url_processed']] = most_frequent_bias
+            annotations_counter = Counter([value for value in annotations.values() if value])
 
-    return result
+            print("URL:", row['source_url_processed'], "Annotations Counter:", annotations_counter)
+
+            if len(annotations_counter) == 1:
+                result[row['source_url_processed']] = list(annotations_counter.keys())[0]
+            elif annotations_counter and list(annotations_counter.values())[0] > list(annotations_counter.values())[1]:
+                result[row['source_url_processed']] = list(annotations_counter.keys())[0]
+            elif annotations_counter and list(annotations_counter.values())[0] == list(annotations_counter.values())[1]:
+                index0 = self.most_frequent_classes_.index(list(annotations_counter.keys())[0])
+
+                index1 = self.most_frequent_classes_.index(list(annotations_counter.keys())[1])
+                if index0 < index1:
+                    result[row['source_url_processed']] = list(annotations_counter.keys())[0]
+                else:
+                    result[row['source_url_processed']] = list(annotations_counter.keys())[1]
+            elif annotations_counter and list(annotations_counter.values())[0] < list(annotations_counter.values())[1]:
+                result[row['source_url_processed']] = list(annotations_counter.keys())[1]
+            else:
+                result[row['source_url_processed']] = self.most_frequent_classes_[0]
+
+
+class OverlapScoreClassifier:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+    def fit(self, data):
+        self.most_frequent_classes_ = list(Counter([_['fact'] for _ in data]).keys())
+
+    def predict(self, data):
+        result = {}
+        for row in tqdm(data):
+            try:
+                alexa_results = ScrapeAlexa(row['source_url_processed']).scrape_alexa_site_info()
+            except BaseException as e:
+                _LOGGER.error(f"alexa_rank fails on site: {row['source_url_processed']} with error {repr(e)}")
+
+            if not alexa_results['score']:
+                _LOGGER.info(f"Could not find results for: {row['source_url_processed']}")
+                result[row['source_url_processed']] = self.most_frequent_classes_[0]
+                continue
+
+            annotations = _process_related_sites(alexa_results, data)
+
+            annotations_counter = Counter([value for value in annotations.values() if value])
+
+            print("URL:", row['source_url_processed'], "Annotations Counter:", annotations_counter)
+
+            if len(annotations_counter) == 1:
+                result[row['source_url_processed']] = list(annotations_counter.keys())[0]
+            elif annotations_counter and list(annotations_counter.values())[0] > list(annotations_counter.values())[1]:
+                result[row['source_url_processed']] = list(annotations_counter.keys())[0]
+            elif annotations_counter and list(annotations_counter.values())[0] == list(annotations_counter.values())[1]:
+                index0 = self.most_frequent_classes_.index(list(annotations_counter.keys())[0])
+
+                index1 = self.most_frequent_classes_.index(list(annotations_counter.keys())[1])
+                if index0 < index1:
+                    result[row['source_url_processed']] = list(annotations_counter.keys())[0]
+                else:
+                    result[row['source_url_processed']] = list(annotations_counter.keys())[1]
+            elif annotations_counter and list(annotations_counter.values())[0] < list(annotations_counter.values())[1]:
+                result[row['source_url_processed']] = list(annotations_counter.keys())[1]
+            else:
+                result[row['source_url_processed']] = self.most_frequent_classes_[0]
 
 
 def baseline_two(data):
@@ -90,13 +144,3 @@ def baseline_three(data):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    DATA = load_corpus()
-    SPLITS = apply_splits(DATA)
-
-    print(SPLITS.keys())
-
-    result_baseline_one = baseline_one(SPLITS['train-0'])
-
-    print(result_baseline_one)
-
-    eval_model(SPLITS['train-0'], result_baseline_one)
