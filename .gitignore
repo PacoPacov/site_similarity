@@ -1,6 +1,9 @@
 # PyCharm dir
 .idea/
 
+# VSCode dir
+.vscode/
+
 # data dir
 data/
 
