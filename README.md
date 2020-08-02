@@ -20,3 +20,5 @@ We use the scrapped data from this [repo](https://github.com/ramybaly/News-Media
     * splits.json
     * stats.txt
     * Note that used the data from (24 August 2018)
+5. For optimizing the time needed for scrapping we use Redis cache.To install Redis follow the installations instructions [here](https://techmonger.github.io/40/redis-without-root/).
+Note we use "redis v6.0.5" but it shouldn't have problems with older versions.
