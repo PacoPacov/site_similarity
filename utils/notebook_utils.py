@@ -10,11 +10,12 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, f1_score, accuracy_score
 
+from dataprep.load_annotated_data import _ANNOTATED_DATA_PATH
+
 from dataprep.load_annotated_data import apply_splits, load_corpus, load_splits
-_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dataset')
-_ANNOTATED_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dataset', 'annotated_data')
-_ALL_DATA = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dataset', 'all_data')
+_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 _INVALID_URLS_2018 = os.path.join(_ANNOTATED_DATA_PATH, 'invalid_urls_2018.json')
+_ALL_DATA = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dataset', 'all_data')
 
 
 def calculate_metrics(actual, predicted):
@@ -55,8 +56,8 @@ def train_model(clf, node2vec_model, data_year='2020', num_labels=3):
         DATA = load_corpus('new_corpus_2020.csv')
         SPLITS = load_splits('modified_splits_new_corpus_2020.json')
     elif data_year == '2018':
-        DATA = load_corpus('modified_corpus.csv')
-        LOADED_SPLITS = load_splits()
+        DATA = load_corpus('modified_corpus_2018.csv')
+        LOADED_SPLITS = load_splits('splits_2018.json')
 
         with open(_INVALID_URLS_2018, 'r') as f:
             invalid_urls_2018 = json.load(f)
