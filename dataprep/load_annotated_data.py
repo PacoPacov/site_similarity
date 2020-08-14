@@ -16,8 +16,15 @@ def load_corpus(corpus_file):
     return corpus
 
 
-def apply_splits(data):
-    with open(os.path.join(_ANNOTATED_DATA_PATH, 'splits.json')) as f:
+def load_splits(split_file):
+    with open(os.path.join(_ANNOTATED_DATA_PATH, split_file)) as f:
+        splits = json.load(f)
+
+    return splits
+
+
+def apply_splits(data, split_file):
+    with open(os.path.join(_ANNOTATED_DATA_PATH, split_file)) as f:
         splits = json.load(f)
 
     data_splits = {}
@@ -38,15 +45,3 @@ def apply_splits(data):
                     data_splits[f'train-{index}'].append(row)
 
     return data_splits
-
-
-if __name__ == '__main__':
-    DATA = load_corpus()
-    DATA_SPLITS = apply_splits(DATA)
-
-    # save the splits
-    for key in DATA_SPLITS:
-        output_path = os.path.join(_ANNOTATED_DATA_PATH, 'splits', f'{key}.json')
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'w') as f:
-            json.dump(DATA_SPLITS[key], f, indent=4)
