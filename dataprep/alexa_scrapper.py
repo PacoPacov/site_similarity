@@ -10,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'all_data')
+_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dataset', 'all_data')
 _LOGGER = logging.getLogger('dataprep.alexa_scrapper')
 
 
