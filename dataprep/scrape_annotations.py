@@ -51,6 +51,7 @@ def process_single_page(page_url):
     paragraphs = article_text.find_all('p')
 
     for paragraph in paragraphs:
+        # TODO add the logic of extractign the label from the image name
         if paragraph.text.startswith('Factual Reporting:'):
             spans = paragraph.find_all('span')
             for span in spans:
@@ -69,6 +70,7 @@ def process_single_page(page_url):
 
 
 if __name__ == "__main__":
+    # TODO Update the ensure that it works correctly
     for name, url in MEDIA_FACTCHECKER_SECTIONS.items():
         if f'{name}.csv' not in os.listdir():
             print(f'Processing {name} section')
