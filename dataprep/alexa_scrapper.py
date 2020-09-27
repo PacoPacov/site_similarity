@@ -1,7 +1,7 @@
 import argparse
 import json
-import os
 import logging
+import os
 import random
 import time
 
@@ -23,11 +23,12 @@ class ScrapeAlexa:
         return f'{self.target_site}.html' in os.listdir(self.target_dir)
 
     @staticmethod
-    def _get_alexa_audience_metrics(element):
+    def _get_alexa_audience_metric(content):
         """ Returns data about audience overlap like:
         similar sites, overlap score, alexa rank
-        :param element: BeautifulSoup object
+        :param content: Page content - HTML string
         """
+        element = BeautifulSoup(content, 'lxml')
 
         similar_sites_by_audience_overlap = element.find('div', {'id': 'card_mini_audience'})
         audience_overlap = element.find('div', {'id': 'card_overlap'})
@@ -54,19 +55,41 @@ class ScrapeAlexa:
                              for site, ov_score, al_score in zip(similar_sites, sites_overlap_score, alexa_score)]
         except ValueError as e:
             _LOGGER.error(f'{similar_sites}')
+            parsed_result = None
 
         return parsed_result
 
-    def scrape_alexa_site_info(self, target_site):
+    @staticmethod
+    def _get_alexa_referral_sites_metric(content):
+        """ Returns data about referral like:
+        referral sites,
+        number of sites linking to target_site that Alexa's web crawl has found.
+        :param content: Page content - HTML string
+        """
+
+        element = BeautifulSoup(content, 'lxml')
+        referral_sites = element.find('div', {'id': 'card_referralsites'})
+
+        if not referral_sites:
+            return []
+
+        result = []
+
+        for found_site in referral_sites.find_all('div', {'class': 'Row'}):
+            url = found_site.find('div', {'class', 'site'}).a['href'].split('/')[-1]
+            score = found_site.find('span', {'class': 'truncation'}).text.strip()
+
+            result.append((url, score))
+
+        return result
+
+    def get_site_content(self, target_site):
         self.target_site = target_site
 
         if self._is_site_already_checked():
             _LOGGER.info(f"This site '{self.target_site}' has already being processed")
-            with open(f"{self.target_dir}/{self.target_site}.html") as f:
-                response = f.read()
-
-            element = BeautifulSoup(response, 'lxml')
-
+            with open(f"{self.target_dir}/{self.target_site}.html", 'r', encoding='cp850') as f:
+                content = f.read()
         else:
             time.sleep(random.randint(1, 10))
             try:
@@ -84,16 +107,23 @@ class ScrapeAlexa:
                 time.sleep(20)
                 response = requests.get(f"https://www.alexa.com/siteinfo/{self.target_site}")
 
-            with open(os.path.join(self.target_dir, f'{self.target_site}.html'), 'w') as f:
-                f.write(response.text)
-            element = BeautifulSoup(response.text, 'lxml')
+            content = response.text
 
+            with open(os.path.join(self.target_dir, f'{self.target_site}.html'), 'w') as f:
+                f.write(content)
+
+        return content
+
+    def scrape_alexa_site_info(self, target_site):
+        content = self.get_site_content(target_site)
+
+        element = BeautifulSoup(content, 'lxml')
         countries = element.find_all('div', {'id': 'countryName'})
         percentages = element.find_all('div', {'id': 'countryPercent'})
 
         res = dict()
         res['site'] = self.target_site
-        score = ScrapeAlexa._get_alexa_audience_metrics(element)
+        score = ScrapeAlexa._get_alexa_audience_metric(content)
         if not score:
             _LOGGER.info(f"No similar_sites_by_audience_overlap or audience_overlap found for {self.target_site}")
         res['score'] = score
@@ -109,7 +139,7 @@ class ScrapeAlexa:
 def scrapping(data, target_dir=None, output_file=None):
     result = {}
     alexa_scrapper = ScrapeAlexa(target_dir)
-    r = redis.Redis(host='localhost', port=6379, db=0)
+    redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
     for index, child_sites in enumerate(tqdm(data.values())):
         if index % 100 == 0 and output_file:
@@ -119,16 +149,51 @@ def scrapping(data, target_dir=None, output_file=None):
         for child_site in child_sites.values():
             result[child_site['site']] = {}
             for overlap_site in child_site.get('score', []):
-                if r.exists(overlap_site['url']):
+                if redis_client.exists(overlap_site['url']):
                     # load from redis
-                    result[child_site['site']][overlap_site['url']] = json.loads(r.get(overlap_site['url']))
+                    result[child_site['site']][overlap_site['url']] = json.loads(redis_client.get(overlap_site['url']))
                 else:
                     alexa_result = alexa_scrapper.scrape_alexa_site_info(overlap_site['url'])
                     # save in redis
-                    r.set(overlap_site['url'], json.dumps(alexa_result))
+                    redis_client.set(overlap_site['url'], json.dumps(alexa_result))
                     result[child_site['site']][overlap_site['url']] = alexa_result
     return result
 
+
+def scrapping_refferal_site(data, target_dir=None, output_file=None):
+    result = {}
+    alexa_scrapper = ScrapeAlexa(target_dir)
+    redis_client = redis.Redis(host='localhost', port=6379, db=0)
+
+    for index, (base_url, refferal_sites_res) in enumerate(tqdm(data.items())):
+        if index % 100 == 0 and output_file:
+            print(f"Save data at index {index} ...")
+            with open(output_file, 'w') as f:
+                json.dump(result, f, indent=4)
+
+        if not refferal_sites_res:
+            result[base_url] = base_url
+
+        for ref_site in refferal_sites_res:
+            if type(ref_site) == str:
+                continue
+
+            url, _ = ref_site
+
+            if url == base_url or url in result:
+                continue
+
+            if redis_client.exists(url):
+                # load from redis
+                result[url] = json.loads(redis_client.get(url))
+            else:
+                content = alexa_scrapper.get_site_content(url)
+                refferal_sites = alexa_scrapper._get_alexa_referral_sites_metric(content)
+                # save in redis
+                redis_client.set(url, json.dumps(refferal_sites))
+                result[url] = refferal_sites
+
+    return result
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
