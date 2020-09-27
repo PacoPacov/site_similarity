@@ -8,11 +8,22 @@ We use the scrapped data from this [repo](https://github.com/ramybaly/News-Media
     ```
     >>> git clone https://github.com/PacoPacov/site_similarity.git
     ```
-2. Create virtual env
+2. Set up virtual envvironment
+2.1. Create virtual env with venv
     ```
     >>> pytho36 -m venv venv
     >>> source venv/bin/activate
     >>> pip install -r site_similarity/requirements.txt
+    ```
+2.2. Create virtual env with conda
+    ```
+    conda create --name site_similarity python=3.7
+    conda activate site_similarity
+    conda install -c stellargraph stellargraph
+    pip install redis
+    conda install -c conda-forge bs4
+    conda install -c conda-forge tqdm
+    conda install -c anaconda lxml
     ```
 3. Create folder 'data' in path/to/project/site_similarity/site_similarity
 4. In the data folder please create another folder - 'annotated_data' and download the three files from this [repo](https://github.com/ramybaly/News-Media-Reliability/tree/master/data) there.
