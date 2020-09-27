@@ -13,8 +13,9 @@ class BaseClassifier:
         self.args = args
         self.kwargs = kwargs
 
-    def fit(self, data):
-        self.most_frequent_classes_ = [label for label, count in Counter([_['fact'] for _ in data]).most_common()]
+    def fit(self, X, y):
+        self.most_frequent_classes_ = [label for label, _ in Counter(y).most_common()]
+        self.training_examples_ = dict(zip(X, y))
 
     @abstractmethod
     def predict(self, data):
@@ -27,8 +28,7 @@ class MostFrequentClassifier(BaseClassifier):
     where we have the same number of labels for the relevant sites.
     """
 
-    @staticmethod
-    def _process_alexa_data(alexa_results, annotated_data):
+    def _process_alexa_data(self, alexa_results):
         """
         Will process the returned urls from alexa rank and will check if he has annotations for any of them.
         :param alexa_results: Result from alexa
@@ -39,17 +39,15 @@ class MostFrequentClassifier(BaseClassifier):
         annotations = {res['url']: None for res in alexa_results['score']}
 
         for res in alexa_results['score']:
-            for url in annotated_data:
-                if res['url'] == url['source_url_processed']:
-                    annotations[res['url']] = url['fact']
+            if res['url'] in self.training_examples_:
+                annotations[res['url']] = self.training_examples_[res['url']]
 
         return annotations
 
-    def predict(self, data):
+    def predict(self, X_test):
         result = {}
         alexa_scrapper = ScrapeAlexa()
-        for row in tqdm(data):
-            target_url = row['source_url_processed']
+        for target_url in X_test:
             try:
                 alexa_results = alexa_scrapper.scrape_alexa_site_info(target_url)
             except BaseException as e:
@@ -61,7 +59,7 @@ class MostFrequentClassifier(BaseClassifier):
                 result[target_url] = self.most_frequent_classes_[0]
                 continue
 
-            processed_alexa_results = MostFrequentClassifier._process_alexa_data(alexa_results, data)
+            processed_alexa_results = self._process_alexa_data(alexa_results)
 
             annotations = dict(Counter([value for value in processed_alexa_results.values() if value]).most_common())
 
@@ -84,18 +82,14 @@ class MostFrequentClassifier(BaseClassifier):
                 # If there are no annotated rows in the data we return the most frequent one
                 result[target_url] = self.most_frequent_classes_[0]
 
-            if annotations:
-                print(f"URL: {target_url} Annotations Counter: {annotations} ==> RESULT label: {result[target_url]}")
-
-        return result
+        return list(result.values())
 
 
 class OverlapClassifier(BaseClassifier):
     """
     Classifier that uses the information about the bigger overlap score between target site and the other sites.
     """
-    @staticmethod
-    def _process_alexa_data(alexa_results, annotated_data):
+    def _process_alexa_data(self, alexa_results):
         """
         Will process the returned urls from alexa rank and will check if he has annotations for any of them.
         :param alexa_results: Result from alexa
@@ -106,20 +100,18 @@ class OverlapClassifier(BaseClassifier):
         annotations = {res['url']: {} for res in alexa_results['score']}
 
         for res in alexa_results['score']:
-            for url in annotated_data:
-                if res['url'] == url['source_url_processed']:
-                    annotations[res['url']]['label'] = url['fact']
-                    annotations[res['url']]['overlap_score'] = res['overlap_score']
+            if res['url'] in self.training_examples_:
+                annotations[res['url']]['label'] = self.training_examples_[res['url']]
+                annotations[res['url']]['overlap_score'] = res['overlap_score']
 
         return {k: v.get('label') for k, v in sorted(annotations.items(),
                                                      key=lambda item: item[1].get('overlap_score', 0),
                                                      reverse=True) if v}
 
-    def predict(self, data):
+    def predict(self, X_test):
         result = {}
         alexa_scrapper = ScrapeAlexa()
-        for row in tqdm(data):
-            target_url = row['source_url_processed']
+        for target_url in X_test:
             try:
                 alexa_results = alexa_scrapper.scrape_alexa_site_info(target_url)
             except BaseException as e:
@@ -131,34 +123,31 @@ class OverlapClassifier(BaseClassifier):
                 result[target_url] = self.most_frequent_classes_[0]
                 continue
 
-            annotations = OverlapClassifier._process_alexa_data(alexa_results, data)
+            annotations = self._process_alexa_data(alexa_results)
 
             if annotations:
                 result[target_url] = list(annotations.values())[0]
-                print(f"URL: {target_url} Annotations Counter: {annotations} == > RESULT label: {result[target_url]}")
+                # print(f"URL: {target_url} Annotations Counter: {annotations} == > RESULT label: {result[target_url]}")
             else:
                 # If there are no annotated rows in the data we return the most frequent one
                 result[target_url] = self.most_frequent_classes_[0]
 
-        return result
+        return list(result.values())
 
 
 class FirstAnnotatedSiteClassifier(BaseClassifier):
     """
     We don't look at votes we take the label from the first annotated related site.
     """
-    @staticmethod
-    def _process_alexa_data(alexa_results, annotated_data):
+    def _process_alexa_data(self, alexa_results):
         for res in alexa_results['score']:
-            for url in annotated_data:
-                if res['url'] == url['source_url_processed']:
-                    return url['fact']
+            if res['url'] in self.training_examples_:
+                return self.training_examples_[res['url']]
 
-    def predict(self, data):
+    def predict(self, X_test):
         result = {}
         alexa_scrapper = ScrapeAlexa()
-        for row in tqdm(data):
-            target_url = row['source_url_processed']
+        for target_url in X_test:
             try:
                 alexa_results = alexa_scrapper.scrape_alexa_site_info(target_url)
             except BaseException as e:
@@ -170,7 +159,7 @@ class FirstAnnotatedSiteClassifier(BaseClassifier):
                 result[target_url] = self.most_frequent_classes_[0]
                 continue
 
-            annotation = FirstAnnotatedSiteClassifier._process_alexa_data(alexa_results, data)
+            annotation = self._process_alexa_data(alexa_results)
 
             if annotation:
                 result[target_url] = annotation
@@ -178,21 +167,7 @@ class FirstAnnotatedSiteClassifier(BaseClassifier):
                 # If there are no annotated rows in the data we return the most frequent one
                 result[target_url] = self.most_frequent_classes_[0]
 
-        return result
-
-
-def eval_model(data, predicted_data):
-    correct, incorrect = 0, 0
-    for predicted_url in predicted_data:
-        for url in data:
-            if predicted_url == url['source_url_processed']:
-                if predicted_data[predicted_url] == url['fact']:
-                    correct += 1
-                else:
-                    incorrect += 1
-
-    print(f"Accuracy: {correct / len(predicted_data)}")
-    print(f"Precision: {correct / (correct + incorrect)}")
+        return list(result.values())
 
 
 if __name__ == '__main__':
