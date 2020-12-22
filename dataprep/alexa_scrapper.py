@@ -88,7 +88,7 @@ class ScrapeAlexa:
 
         if self._is_site_already_checked():
             _LOGGER.info(f"This site '{self.target_site}' has already being processed")
-            with open(f"{self.target_dir}/{self.target_site}.html", 'r', encoding='cp850') as f:
+            with open(f"{self.target_dir}/{self.target_site}.html", 'r', encoding='utf-8') as f:
                 content = f.read()
         else:
             time.sleep(random.randint(1, 10))
@@ -109,7 +109,7 @@ class ScrapeAlexa:
 
             content = response.text
 
-            with open(os.path.join(self.target_dir, f'{self.target_site}.html'), 'w') as f:
+            with open(os.path.join(self.target_dir, f'{self.target_site}.html'), 'w', encoding='utf-8') as f:
                 f.write(content)
 
         return content

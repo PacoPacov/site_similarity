@@ -1,10 +1,11 @@
-import os
 import json
+import os
 from datetime import datetime
-import numpy as np
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from utils.notebook_utils import _ALL_DATA, _DATA_PATH
 
 
 def load_level_data(level=0):
@@ -29,17 +30,18 @@ def normalize_sites(lvl_data, level=0):
             overlap_sites.append(v[k]['score'])
             audience_geography.append(v[k]['audience_geography'])
             levels.append(level)
-            if os.path.exists(f"/home/paco/Documents/site_similarity/dataset/all_data/{k}.html"):
+
+            if os.path.exists(os.join(_ALL_DATA, f'{k}.html')):
                 dates.append(
                     datetime.fromtimestamp(
-                        os.stat(f"/home/paco/Documents/site_similarity/dataset/all_data/{k}.html").st_mtime))
+                        os.stat(os.join(_ALL_DATA, f'{k}.html')).st_mtime))
             else:
                 dates.append(None)
     return [sites, overlap_sites, audience_geography, levels, dates]
 
 
 def load_referral_sites_from_old_data(df):
-    with open('/home/paco/Documents/site_similarity/data/clean_data_20200803.json') as f:
+    with open(os.join(_DATA_PATH, 'clean_data_20200803.json')) as f:
         old_data = json.load(f)
 
     print(f"Loaded records: {len(old_data)}")
@@ -52,12 +54,15 @@ def load_referral_sites_from_old_data(df):
     referral_sites_new_data = []
     for site in tqdm(sites):
         if site in old_sites_list:
-            referral_sites_new_data.append({'sites': site, 'referal_sites': old_df.loc[old_df['sites'] == site, 'referal_sites'].values.tolist()[0]})
+            referral_sites_new_data.append({'sites': site,
+                                            'referal_sites': old_df.loc[old_df['sites'] == site,
+                                            'referal_sites'].values.tolist()[0]})
         else:
             referral_sites_new_data.append({'sites': site, 'referal_sites': None})
 
     referral_sites = pd.DataFrame(referral_sites_new_data)
     return df.merge(referral_sites, on='sites')
+
 
 if __name__ == "__main__":
     df = pd.DataFrame([], columns=['sites', 'overlap_sites', 'audience_geography', 'levels', 'dates'])
