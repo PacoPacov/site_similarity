@@ -9,7 +9,7 @@ We use the scrapped data from this [repo](https://github.com/ramybaly/News-Media
 >>> git clone https://github.com/PacoPacov/site_similarity.git
 ```
 
-2. Set up virtual envvironment
+2. Set up virtual environment
 
 2.1. Create virtual env with venv and install needed packages:
 ```
