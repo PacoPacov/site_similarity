@@ -23,9 +23,11 @@ from dataprep.load_annotated_data import load_corpus, load_splits
 
 np.random.seed(16)
 
-_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
-_ALL_DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dataset', 'all_data')
-_MODEL_STORAGE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'node2vec_models')
+_PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DATA_PATH = os.path.join(_PROJECT_PATH, 'data')
+_ALL_DATA = os.path.join(_PROJECT_PATH, 'dataset', 'all_data')
+_MODEL_STORAGE = os.path.join(_PROJECT_PATH, 'data', 'node2vec_models')
+_FEATURES_DIR = os.path.join(_DATA_PATH, 'features')
 _PARAMS_SVM = [dict(kernel=["rbf"], gamma=np.logspace(-6, 1, 8), C=np.logspace(-2, 2, 5))]
 _ALEXA_SECTIONS_NAMES = {
     'comparison_metrics': None,
@@ -64,30 +66,6 @@ def evaluate(y_test, y_test_pred):
         "MAE": mean_absolute_error(y_test, y_test_pred),
         "Confusion matrix": confusion_matrix(y_test, y_test_pred).tolist()
     }
-
-
-def calculate_metrics(actual, predicted):
-    """
-    Calculate performance metrics given the actual and predicted labels.
-    Returns the macro-F1 score, the accuracy, the flip error rate and the
-    mean absolute error (MAE).
-    The flip error rate is the percentage where an instance was predicted
-    as the opposite label (i.e., left-vs-right or high-vs-low).
-    """
-    # calculate macro-f1
-    f1 = f1_score(actual, predicted, average='macro') * 100
-
-    # calculate accuracy
-    accuracy = accuracy_score(actual, predicted) * 100
-
-    # calculate the flip error rate
-    flip_err = sum([1 for i in range(len(actual)) if abs(actual[i] - predicted[i]) > 1]) / len(actual) * 100
-
-    # calculate mean absolute error (mae)
-    mae = sum([abs(actual[i] - predicted[i]) for i in range(len(actual))]) / len(actual)
-    mae = mae[0] if not isinstance(mae, float) else mae
-
-    return f1, accuracy, flip_err, mae
 
 
 def train_model(clf, data_year='2020', node2vec_model=None, task='fact', num_labels=3):
@@ -616,6 +594,24 @@ def check_sections_population(result):
             population_info[section] = 0
 
     return population_info
+
+
+def export_node2vec_as_feature(model_name, data_year='2020'):
+    model = load_node2vec_model(model_name)
+
+    if data_year == '2020':
+        corpus = load_corpus('new_corpus_2020.csv', data_year='2020')
+    else:
+        corpus = None
+
+    feature = {}
+    for record in corpus:
+        site = record['source_url_processed']
+        feature[site] = model[site].tolist()
+
+    feature_name = os.path.join(_FEATURES_DIR, model_name.strip('.model') + ".json")
+    with open(feature_name, 'w') as f:
+        json.dump(feature, f)
 
 
 def extact_data_needed_for_for_node_feature_report():
