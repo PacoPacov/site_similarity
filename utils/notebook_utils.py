@@ -529,7 +529,10 @@ def combined_nodes_referral_sites_audience_overlap(data_year='2020', level=1, ad
 
     audience_overlap_sites = load_level_data(os.path.join(_DATA_PATH, audience_overlap_scrapping_file), level=level)
 
-    audience_overlap_sites_NODES = create_nodes(audience_overlap_sites, edge_type='similar_by_audience_overlap_to') if add_edge_type else create_nodes(audience_overlap_sites)
+    if add_edge_type:
+        audience_overlap_sites_NODES = create_nodes(audience_overlap_sites, edge_type='similar_by_audience_overlap_to')
+    else:
+        audience_overlap_sites_NODES = create_nodes(audience_overlap_sites)
 
     print('referral_sites node size:', len(referral_sites_NODES),
           'audience_overlap node size:', len(audience_overlap_sites_NODES))
