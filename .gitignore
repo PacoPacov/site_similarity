@@ -7,6 +7,24 @@
 # data dir
 dataset/
 
+# exported models dir
+data/features/*
+
+# node2vec_model dir
+data/node2vec_models/*
+
+# interim files
+data/*level*.json
+
+# redis files
+*.rdb
+
+*.zip
+
+notebooks/node_features_extractions_draft/*
+
+*levels_0_1_*.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
