@@ -1,0 +1,10 @@
+notes for binary features
+
+Add:
+    "pri.org" same as "pri.org-programs-globalpost"
+    "mlive.com" same as "mlive.com-grand-rapids-#-0"
+    "westernjournalism.com" same as "westernjournalism.com-thepoint"
+
+Update key:
+    "newyorker.com-humor-borowitz-report" -> "newyorker.com"
+    and add key "newyorker.com-humor-borowitz-report" with value [0]

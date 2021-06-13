@@ -89,7 +89,7 @@ def get_keyword_gaps(el):
     metric_two = [kw.span.text.strip('Search Popularity') for kw in keyword_gaps.find_all('div', {'class': 'metric_two'})[1:]]
 
     return [{'keyword': keywords[index],
-             'avg_traffic_to_competitord': metric_one[index],
+             'avg_traffic_to_competitors': metric_one[index],
              'search_popularity': metric_two[index]} for index, _ in enumerate(keywords)]
 
 
@@ -121,7 +121,7 @@ def get_buyer_keywords(el):
     metric_two = [kw.span.text.strip('Organic Competition') for kw in card_buyer.find_all('div', {'class': 'metric_two'})[1:]]
 
     return [{'keyword': keywords[index],
-             'avg_traffic_to_competitord': metric_one[index],
+             'avg_traffic_to_competitors': metric_one[index],
              'organic_competition': metric_two[index]} for index, _ in enumerate(keywords)]
 
 
@@ -158,7 +158,7 @@ def get_top_social_topics(el):
             if index < 2:
                 result[topic_name]['this_site' + ' ' + stat.span.text] = stat.text.replace(stat.span.text, '')
             else:
-                result[topic_name]['compatitor_avg' + ' ' + stat.span.text] = stat.text.replace(stat.span.text, '')
+                result[topic_name]['competitor_avg' + ' ' + stat.span.text] = stat.text.replace(stat.span.text, '')
 
     return result
 
